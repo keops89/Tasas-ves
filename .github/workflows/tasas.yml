@@ -1,0 +1,41 @@
+name: Revisar tasas
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tasas
+  cancel-in-progress: false
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Revisar BCV y Binance P2P
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          UMBRAL_BS: ${{ vars.UMBRAL_BS }}
+          LADO_ALERTA: ${{ vars.LADO_ALERTA }}
+          METODOS_PAGO: ${{ vars.METODOS_PAGO }}
+        run: python revisar.py
+      - name: Guardar estado
+        run: |
+          if [ -n "$(git status --porcelain estado.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add estado.json
+            git commit -m "Actualizar estado de tasas"
+            git push
+          fi
